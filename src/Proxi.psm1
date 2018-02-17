@@ -6,6 +6,7 @@ if (Get-Module Proxi) {
 
 $script:HelpAliases = $('help','-h','--help')
 
+. $PSScriptRoot\ProxiProject.ps1
 . $PSScriptRoot\ProxiUtils.ps1
 . $PSScriptRoot\ProxiHelp.ps1
 . $PSScriptRoot\ProxiTabExpansionParams.ps1
@@ -78,7 +79,7 @@ function Proxi {
         }
 
         Write-Host "$($script:ParametersWithValues.Keys)" -ForegroundColor Cyan
-        Write-Host "Would run: $($script:scriptFiles[$args[0]])$arguments" -ForegroundColor Red
+        Write-Host "Would run: $($script:DefaultScripts[$args[0]])$arguments" -ForegroundColor Red
     }
 }
 
