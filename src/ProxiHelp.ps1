@@ -2,8 +2,9 @@ function Write-Proxi-Help() {
     $proxiHelp = (Get-Help Proxi)
     Write-Host $proxiHelp.Description.Text -ForegroundColor Cyan
     Write-Host $proxiHelp.Synopsis
-    foreach($command in $script:Project.HelpByCommand.Keys) {
-        $helpItem = $script:Project.HelpByCommand[$command]
+
+    foreach($command in $script:System.help().Keys) {
+        $helpItem = $script:System.help()[$command]
 
         if($helpItem.GetType() -eq [String]) {
             continue;
@@ -23,12 +24,12 @@ function Write-Proxi-Help() {
 function Write-Help([String] $command) {
     $counter = 0
 
-    if(!$script:Project.HelpByCommand.ContainsKey($command)) {
+    if(!$script:System.help().ContainsKey($command)) {
         Write-Host "Unknown command '$command'" -ForegroundColor Red
         return
     }
 
-    $helpItem = $script:Project.HelpByCommand[$command]
+    $helpItem = $script:System.help()[$command]
     $hasCustomHelp = $helpItem.GetType() -ne [String]
 
     if($hasCustomHelp -and $helpItem.Synopsis) {
@@ -36,7 +37,7 @@ function Write-Help([String] $command) {
     }
 
     Write-Host "Usage: proxi $command [--help | -h]"
-    if($script:Project.SwitchesByCommand.ContainsKey($command)) {
+    if($script:System.switches().ContainsKey($command)) {
         if($counter % 3 -eq 0) {
             if($counter -gt 0) {
                 Write-Blank-Line
@@ -45,15 +46,15 @@ function Write-Help([String] $command) {
             Write-Tab
         }
 
-        foreach($arg in $script:Project.SwitchesByCommand[$command]) {
-            $hasValue = $script:Project.ParametersByCommand.ContainsKey($command) -and $script:Project.ParametersByCommand[$command].ContainsKey($arg)
+        foreach($arg in $script:System.switches()[$command]) {
+            $hasValue = $script:System.parameters().ContainsKey($command) -and $script:System.parameters()[$command].ContainsKey($arg)
             Write-Host "[--$arg" -NoNewline
 
             if($hasValue){
                 Write-Host "=<value>" -NoNewline
             }
 
-            foreach($alias in $script:Project.AliasesByCommandAndParameter[$command][$arg]) {
+            foreach($alias in $script:System.someAliases($command, $arg)) {
                 Write-Host " | -$alias" -NoNewline
                 
                 if($hasValue){

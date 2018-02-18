@@ -2,7 +2,7 @@ param([switch]$WhatIf = $false, [switch]$Force = $false, [switch]$Verbose = $fal
 
 if (Get-Module Proxi) {
     Write-Host "Removing module proxi"
-    Remove-Module Proxi
+    Remove-Module Proxi -Force
 }
 
 $installDir = Split-Path $MyInvocation.MyCommand.Path -Parent

@@ -2,46 +2,21 @@ $Global:ProxiTabSettings = New-Object PSObject -Property @{
     AllCommands = $false
 }
 
-[ProxiProject] $script:Project = [ProxiProject]::new()
-$script:Project.addCommandsFrom($ENV:PROXI_HOME)
-
-$script:ChildProjects = @{}
-$script:LoadedProjects = @()
-
-
-foreach($childProject in Get-ChildItem -Path "env:Proxi_Project_*" -ErrorAction SilentlyContinue) {
-    $script:ChildProjects.Add(($childProject.Name -replace "Proxi_Project_", ""), $childProject.Value)
-}
-
-Write-Host "Loaded projects; $($script:ChildProjects.Keys -join ", ")"
-Write-Host "Loaded projects; $($script:ChildProjects.Values -join ", ")"
-
-$script:proxiCommandsWithLongParams = $script:Project.SwitchesByCommand.Keys -join '|'
-$script:proxiCommandsWithShortParams = $script:Project.AliasesByCommand.Keys -join '|'
-$script:proxiCommandsWithParamValues = $script:Project.ParametersByCommand.Keys -join '|'
-
-Write-host ($script:Project.ToString())
+[ProxiSystem] $script:System = [ProxiSystem]::new()
+$script:System.loadDefault()
 
 function script:proxiCommands($filter) {
     $cmdList = @()
-    if (-not $global:ProxiTabSettings.AllCommands) {
-        $cmdList += $script:Project.Commands -like "$filter*"
-    } else {
-        $cmdList += proxi help --all |
-            Where-Object { $_ -match '^  \S.*' } |
-            ForEach-Object { $_.Split(' ', [StringSplitOptions]::RemoveEmptyEntries) } |
-            Where-Object { $_ -like "$filter*" }
-    }
-
+    $cmdList += $script:System.allCommands() -like "$filter*"
     $cmdList | Sort-Object
 }
 
 function script:expandLongParams($cmd, $filter) {
-    $script:Project.SwitchesByCommand[$cmd] -split ' ' |
+    $script:System.switches()[$cmd] -split ' ' |
         Where-Object { $_ -like "$filter*" } |
         Sort-Object |
         ForEach-Object { 
-            if($script:Project.ParametersByCommand[$cmd].ContainsKey($_)) {
+            if($script:System.parameters()[$cmd].ContainsKey($_)) {
                 -join ("--", $_, "=") 
             } else {
                 -join ("--", $_) 
@@ -50,11 +25,11 @@ function script:expandLongParams($cmd, $filter) {
 }
 
 function script:expandShortParams($cmd, $filter) {
-    $script:Project.AliasesByCommand[$cmd] -split ' ' |
+    $script:System.aliases()[$cmd] -split ' ' |
         Where-Object { $_ -like "$filter*" } |
         Sort-Object |
         ForEach-Object  { 
-            if($script:Project.ParametersByCommand[$cmd].ContainsKey($_)) {
+            if($script:System.parameters()[$cmd].ContainsKey($_)) {
                 -join ("-", $_, "=") 
             } else {
                 -join ("-", $_)
@@ -63,7 +38,7 @@ function script:expandShortParams($cmd, $filter) {
 }
 
 function script:expandParamValues($cmd, $param, $filter) {
-    $script:Project.ParametersByCommand[$cmd][$param] -split ' ' |
+    $script:System.parameters()[$cmd][$param] -split ' ' |
         Where-Object { $_ -like "$filter*" } |
         Sort-Object |
         ForEach-Object { -join ("--", $param, "=", $_) }
@@ -73,25 +48,16 @@ if (Test-Path Function:\TabExpansion) {
     Rename-Item Function:\TabExpansion TabExpansionBackup
 }
 
+Write-Host $script:System.proxiCommandsWithShortParams()
+
 function TabExpansion($line, $lastWord) {
     $lastBlock = [regex]::Split($line, '[|;]')[-1].TrimStart()
 
-    $modified = $false
-    $currentDir = (Get-Item -Path ".\" -Verbose).FullName
-    foreach($childProjectName in $script:ChildProjects.keys){
-        if($currentDir.StartsWith($script:ChildProjects[$childProjectName]) -and $script:LoadedProjects -notcontains $childProjectName) {
-            $script:Project.addCommandsFrom($script:ChildProjects[$childProjectName])
-            $script:LoadedProjects += $childProjectName
-            $modified = $true
-        }
-    }
-
-    if($modified) {
-        $script:proxiCommandsWithLongParams = $script:Project.SwitchesByCommand.Keys -join '|'
-        $script:proxiCommandsWithShortParams = $script:Project.AliasesByCommand.Keys -join '|'
-        $script:proxiCommandsWithParamValues = $script:Project.ParametersByCommand.Keys -join '|'
-    }
-
+    $script:System.loadCurrent()
+    $proxiCommandsWithLongParams = $script:System.proxiCommandsWithLongParams()
+    $proxiCommandsWithShortParams = $script:System.proxiCommandsWithShortParams()
+    $proxiCommandsWithParamValues = $script:System.proxiCommandsWithParamValues()
+    
     switch -regex ($lastBlock) {
         "^$(Get-AliasPattern proxi) (.*)" {
             switch -regex ($lastBlock -replace "^$(Get-AliasPattern proxi) ","") {
