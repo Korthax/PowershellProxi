@@ -48,8 +48,6 @@ if (Test-Path Function:\TabExpansion) {
     Rename-Item Function:\TabExpansion TabExpansionBackup
 }
 
-Write-Host $script:System.proxiCommandsWithShortParams()
-
 function TabExpansion($line, $lastWord) {
     $lastBlock = [regex]::Split($line, '[|;]')[-1].TrimStart()
 

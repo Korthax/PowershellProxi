@@ -21,10 +21,10 @@ class ProxiSystem {
         [ProxiProject] $defaultProject = [ProxiProject]::new()
         $defaultProject.addCommandsFrom($ENV:PROXI_HOME)
         $this.LoadedProjects.Add('default', $defaultProject)
-        Write-Host $defaultProject.Commands
 
         foreach($childProject in Get-ChildItem -Path "env:Proxi_Project_*" -ErrorAction SilentlyContinue) {
             $this.ChildProjects.Add(($childProject.Name -replace "Proxi_Project_", ""), $childProject.Value)
+            Write-Host "Loaded project: $($childProject.Name)"
         }
     }
 
@@ -116,9 +116,12 @@ class ProxiSystem {
 
     [array] someAliases([string] $command, [string] $parameter) {
         $result = @()
-        $result += $this.LoadedProjects["default"].AliasesByCommandAndParameter[$command][$parameter]
 
-        if($this.CurrentProject -ne "default") {
+        if($this.LoadedProjects["default"].AliasesByCommandAndParameter.ContainsKey($command) -and $this.LoadedProjects["default"].AliasesByCommandAndParameter[$command].ContainsKey($parameter)) {
+            $result += $this.LoadedProjects["default"].AliasesByCommandAndParameter[$command][$parameter]
+        }
+
+        if($this.CurrentProject -ne "default" -and $this.LoadedProjects["default"].AliasesByCommandAndParameter.ContainsKey($command) -and $this.LoadedProjects["default"].AliasesByCommandAndParameter[$command].ContainsKey($parameter)) {
             $result += $this.LoadedProjects[$this.CurrentProject].AliasesByCommandAndParameter[$command][$parameter]
         }
 
@@ -148,7 +151,6 @@ class ProxiSystem {
     }
 
     [string] proxiCommandsWithShortParams() {
-        Write-Host $this.aliases().Keys
         return $this.aliases().Keys -join '|'
     }
 
