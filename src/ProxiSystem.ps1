@@ -17,15 +17,32 @@ class ProxiSystem {
         return "default"
     }
 
+    [void] load([string] $project) {
+        if(!$this.ChildProjects.ContainsKey($project)) {
+            return
+        }
+
+        if($this.LoadedProjects.ContainsKey($project)){
+            return
+        }
+
+        [ProxiProject] $newProject = [ProxiProject]::new()
+        $newProject.addCommandsFrom($this.ChildProjects[$project])
+        $this.LoadedProjects.Add($project, $newProject)
+    }
+
     [void] loadDefault() {
         [ProxiProject] $defaultProject = [ProxiProject]::new()
         $defaultProject.addCommandsFrom($ENV:PROXI_HOME)
         $this.LoadedProjects.Add('default', $defaultProject)
 
         foreach($childProject in Get-ChildItem -Path "env:Proxi_Project_*" -ErrorAction SilentlyContinue) {
-            $this.ChildProjects.Add(($childProject.Name -replace "Proxi_Project_", ""), $childProject.Value)
-            Write-Host "Loaded project: $($childProject.Name)"
+            $projectKey = ($childProject.Name -replace "Proxi_Project_", "").ToLower()
+            $this.ChildProjects.Add($projectKey, $childProject.Value)
+            Write-Host "Loaded project: $projectKey"
         }
+
+        Write-Host "Current Project: $($this.getCurrentProjectName())"
     }
 
     [void] loadCurrent() {
@@ -49,12 +66,34 @@ class ProxiSystem {
         return $this.LoadedProjects[$this.CurrentProject].ScriptFilesByCommand[$command]
     }
 
+    [array] allProjects() {
+        $result = $()
+        $result += $this.ChildProjects.keys
+        return $result
+    }
+
     [array] allCommands() {
         $result = $()
         $result += $this.LoadedProjects["default"].Commands
 
         if($this.CurrentProject -ne "default") {
             $result += $this.LoadedProjects[$this.CurrentProject].Commands
+        }
+
+        return $result
+    }
+    
+    [bool] isProject([string] $project) {
+        return $this.ChildProjects.ContainsKey($project)
+    }
+
+    [array] someCommands([string] $project) {
+        $result = $()
+        $result += $this.LoadedProjects["default"].Commands
+
+        if($this.ChildProjects.ContainsKey($project)) {
+            $this.load($project)
+            $result += $this.LoadedProjects[$project].Commands
         }
 
         return $result

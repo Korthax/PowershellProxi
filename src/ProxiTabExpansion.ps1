@@ -5,14 +5,26 @@ $Global:ProxiTabSettings = New-Object PSObject -Property @{
 [ProxiSystem] $script:System = [ProxiSystem]::new()
 $script:System.loadDefault()
 
-function script:proxiCommands($filter) {
+function script:proxiCommands([string] $filter) {
     $cmdList = @()
     $cmdList += $script:System.allCommands() -like "$filter*"
-    $cmdList | Sort-Object
+    $cmdList += $script:System.allProjects() -like "$filter*"
+    return $cmdList | Sort-Object
+}
+
+function script:proxiSomeCommands($project, $filter) {
+    $cmdList = @()
+
+    if($script:System.isProject($project)) {
+        $cmdList += $script:System.someCommands($project) -like "$filter*"
+        return $cmdList | Sort-Object
+    }
+
+    return $cmdList
 }
 
 function script:expandLongParams($cmd, $filter) {
-    $script:System.switches()[$cmd] -split ' ' |
+    return $script:System.switches()[$cmd] -split ' ' |
         Where-Object { $_ -like "$filter*" } |
         Sort-Object |
         ForEach-Object { 
@@ -25,7 +37,7 @@ function script:expandLongParams($cmd, $filter) {
 }
 
 function script:expandShortParams($cmd, $filter) {
-    $script:System.aliases()[$cmd] -split ' ' |
+    return $script:System.aliases()[$cmd] -split ' ' |
         Where-Object { $_ -like "$filter*" } |
         Sort-Object |
         ForEach-Object  { 
@@ -38,7 +50,7 @@ function script:expandShortParams($cmd, $filter) {
 }
 
 function script:expandParamValues($cmd, $param, $filter) {
-    $script:System.parameters()[$cmd][$param] -split ' ' |
+    return $script:System.parameters()[$cmd][$param] -split ' ' |
         Where-Object { $_ -like "$filter*" } |
         Sort-Object |
         ForEach-Object { -join ("--", $param, "=", $_) }
@@ -59,26 +71,32 @@ function TabExpansion($line, $lastWord) {
     switch -regex ($lastBlock) {
         "^$(Get-AliasPattern proxi) (.*)" {
             switch -regex ($lastBlock -replace "^$(Get-AliasPattern proxi) ","") {
+            ## Explicit Project
+                # Handles proxi <cmd>
+                "^(?<proj>\S+).* (?<cmd>\S*)$" {
+                    proxiSomeCommands $matches['proj'] $matches['cmd']
+                }
+                # Handles proxi help <cmd>
+                "^help (?<proj>\S*) (?<cmd>\S*)$" {
+                    proxiSomeCommands $matches['proj'] $matches['cmd']
+                }
+            ## Implicit Project
                 # Handles proxi <cmd>
                 "^(?<cmd>\S*)$" {
                     proxiCommands $matches['cmd']
                 }
-
                 # Handles proxi help <cmd>
                 "^help (?<cmd>\S*)$" {
                     proxiCommands $matches['cmd']
                 }
-
                 # Handles proxi <cmd> --<param>=<value>
                 "^(?<cmd>$proxiCommandsWithParamValues).* --(?<param>[^=]+)=(?<value>\S*)$" {
                     expandParamValues $matches['cmd'] $matches['param'] $matches['value']
                 }
-
                 # Handles proxi <cmd> --<param>
                 "^(?<cmd>$proxiCommandsWithLongParams).* --(?<param>\S*)$" {
                     expandLongParams $matches['cmd'] $matches['param']
-                }
-        
+                }            
                 # Handles proxi <cmd> -<shortparam>
                 "^(?<cmd>$proxiCommandsWithShortParams).* -(?<shortparam>\S*)$" {
                     expandShortParams $matches['cmd'] $matches['shortparam']
