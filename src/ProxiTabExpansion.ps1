@@ -63,17 +63,17 @@ function TabExpansion($line, $lastWord) {
                 "^(?<cmd>\S*)$" {
                     proxiCommands $matches['cmd']
                 }
-        
+
                 # Handles proxi help <cmd>
                 "^help (?<cmd>\S*)$" {
                     proxiCommands $matches['cmd']
                 }
-        
+
                 # Handles proxi <cmd> --<param>=<value>
                 "^(?<cmd>$proxiCommandsWithParamValues).* --(?<param>[^=]+)=(?<value>\S*)$" {
                     expandParamValues $matches['cmd'] $matches['param'] $matches['value']
                 }
-        
+
                 # Handles proxi <cmd> --<param>
                 "^(?<cmd>$proxiCommandsWithLongParams).* --(?<param>\S*)$" {
                     expandLongParams $matches['cmd'] $matches['param']
